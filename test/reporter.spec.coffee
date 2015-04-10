@@ -26,10 +26,11 @@ describe 'reporter', ->
 
   mockAdd = sinon.spy()
   mockDispose = sinon.spy()
+  mockGetFinalCoverage = sinon.stub().returns {}
   mockCollector = class Collector
     add: mockAdd
     dispose: mockDispose
-    getFinalCoverage: -> null
+    getFinalCoverage: mockGetFinalCoverage
   mockWriteReport = sinon.spy()
   mockReportCreate = sinon.stub().returns writeReport: mockWriteReport
   mockMkdir = sinon.spy()
@@ -42,12 +43,22 @@ describe 'reporter', ->
     add: sinon.spy()
     get: sinon.spy()
 
+  mockSummarizeCoverage = sinon.stub().returns {
+    lines:      {total: 5, covered: 1, skipped: 0, pct: 20},
+    statements: {total: 5, covered: 1, skipped: 0, pct: 20},
+    functions:  {total: 5, covered: 1, skipped: 0, pct: 20},
+    branches:   {total: 5, covered: 1, skipped: 0, pct: 20}
+  }
+
   mocks =
     fs: mockFs
     istanbul:
       Store: mockStore
       Collector: mockCollector
       Report: create: mockReportCreate
+      utils:
+        summarizeCoverage: mockSummarizeCoverage
+        summarizeFileCoverage: mockSummarizeCoverage
     dateformat: require 'dateformat'
     './coverageMap': mockCoverageMap
 
@@ -293,3 +304,63 @@ describe 'reporter', ->
       browsers.forEach (b) -> reporter.onBrowserStart b
 
       expect(mockCoverageMap.get).not.to.have.been.called
+
+    it 'should log errors on low coverage and fail the build', ->
+      customConfig = _.merge {}, rootConfig,
+        coverageReporter:
+          check:
+            each:
+              statements: 50
+
+      mockGetFinalCoverage.returns
+        './foo/bar.js': {}
+        './foo/baz.js': {}
+
+      spy1 = sinon.spy()
+
+      customLogger = create: (name) ->
+        debug: -> null
+        info: -> null
+        warn: -> null
+        error: spy1
+
+      results = exitCode: 0
+
+      reporter = new m.CoverageReporter customConfig, mockHelper, customLogger
+      reporter.onRunStart()
+      browsers.forEach (b) -> reporter.onBrowserStart b
+      reporter.onRunComplete browsers, results
+
+      expect(spy1).to.have.been.called
+
+      expect(results.exitCode).to.not.equal 0
+
+    it 'should not log errors on sufficient coverage and not fail the build', ->
+      customConfig = _.merge {}, rootConfig,
+        coverageReporter:
+          check:
+            each:
+              statements: 10
+
+      mockGetFinalCoverage.returns
+        './foo/bar.js': {}
+        './foo/baz.js': {}
+
+      spy1 = sinon.spy()
+
+      customLogger = create: (name) ->
+        debug: -> null
+        info: -> null
+        warn: -> null
+        error: spy1
+
+      results = exitCode: 0
+
+      reporter = new m.CoverageReporter customConfig, mockHelper, customLogger
+      reporter.onRunStart()
+      browsers.forEach (b) -> reporter.onBrowserStart b
+      reporter.onRunComplete browsers, results
+
+      expect(spy1).to.not.have.been.called
+
+      expect(results.exitCode).to.equal 0
