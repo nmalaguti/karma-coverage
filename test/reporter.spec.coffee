@@ -61,13 +61,10 @@ describe 'reporter', ->
       Store: mockStore
       Collector: mockCollector
       Report: create: mockReportCreate
-<<<<<<< HEAD
       utils:
         summarizeCoverage: mockSummarizeCoverage
         summarizeFileCoverage: mockSummarizeCoverage
-=======
       config: defaultConfig: sinon.stub().returns(reporting: watermarks: mockDefaultWatermarks)
->>>>>>> Added tests for watermarks
     dateformat: require 'dateformat'
     './coverageMap': mockCoverageMap
 
@@ -428,3 +425,63 @@ describe 'reporter', ->
       expect(options.args[1].watermarks.branches).to.deep.equal(mockDefaultWatermarks.branches)
       expect(options.args[1].watermarks.functions).to.deep.equal(mockDefaultWatermarks.functions)
       expect(options.args[1].watermarks.lines).to.deep.equal(watermarks.lines)
+
+    it 'should log errors on low coverage and fail the build', ->
+      customConfig = _.merge {}, rootConfig,
+        coverageReporter:
+          check:
+            each:
+              statements: 50
+
+      mockGetFinalCoverage.returns
+        './foo/bar.js': {}
+        './foo/baz.js': {}
+
+      spy1 = sinon.spy()
+
+      customLogger = create: (name) ->
+        debug: -> null
+        info: -> null
+        warn: -> null
+        error: spy1
+
+      results = exitCode: 0
+
+      reporter = new m.CoverageReporter customConfig, mockHelper, customLogger
+      reporter.onRunStart()
+      browsers.forEach (b) -> reporter.onBrowserStart b
+      reporter.onRunComplete browsers, results
+
+      expect(spy1).to.have.been.called
+
+      expect(results.exitCode).to.not.equal 0
+
+    it 'should not log errors on sufficient coverage and not fail the build', ->
+      customConfig = _.merge {}, rootConfig,
+        coverageReporter:
+          check:
+            each:
+              statements: 10
+
+      mockGetFinalCoverage.returns
+        './foo/bar.js': {}
+        './foo/baz.js': {}
+
+      spy1 = sinon.spy()
+
+      customLogger = create: (name) ->
+        debug: -> null
+        info: -> null
+        warn: -> null
+        error: spy1
+
+      results = exitCode: 0
+
+      reporter = new m.CoverageReporter customConfig, mockHelper, customLogger
+      reporter.onRunStart()
+      browsers.forEach (b) -> reporter.onBrowserStart b
+      reporter.onRunComplete browsers, results
+
+      expect(spy1).to.not.have.been.called
+
+      expect(results.exitCode).to.equal 0
