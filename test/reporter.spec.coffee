@@ -42,6 +42,11 @@ describe 'reporter', ->
   mockCoverageMap =
     add: sinon.spy()
     get: sinon.spy()
+  mockDefaultWatermarks =
+    statements: [50, 80]
+    branches: [50, 80]
+    functions: [50, 80]
+    lines: [50, 80]
 
   mockSummarizeCoverage = sinon.stub().returns {
     lines:      {total: 5, covered: 1, skipped: 0, pct: 20},
@@ -56,9 +61,13 @@ describe 'reporter', ->
       Store: mockStore
       Collector: mockCollector
       Report: create: mockReportCreate
+<<<<<<< HEAD
       utils:
         summarizeCoverage: mockSummarizeCoverage
         summarizeFileCoverage: mockSummarizeCoverage
+=======
+      config: defaultConfig: sinon.stub().returns(reporting: watermarks: mockDefaultWatermarks)
+>>>>>>> Added tests for watermarks
     dateformat: require 'dateformat'
     './coverageMap': mockCoverageMap
 
@@ -364,3 +373,58 @@ describe 'reporter', ->
       expect(spy1).to.not.have.been.called
 
       expect(results.exitCode).to.equal 0
+
+    it 'should pass watermarks to istanbul', ->
+      watermarks =
+        statements: [10, 20]
+        branches: [30, 40]
+        functions: [50, 60]
+        lines: [70, 80]
+
+      customConfig = _.merge {}, rootConfig,
+        coverageReporter:
+          reporters: [
+            {
+              dir: 'reporter1'
+            }
+          ]
+          watermarks: watermarks
+
+      mockReportCreate.reset()
+
+      reporter = new m.CoverageReporter customConfig, mockHelper, mockLogger
+      reporter.onRunStart()
+      browsers.forEach (b) -> reporter.onBrowserStart b
+      reporter.onRunComplete browsers
+
+      expect(mockReportCreate).to.have.been.called
+      options = mockReportCreate.getCall(0)
+      expect(options.args[1].watermarks).to.deep.equal(watermarks)
+
+    it 'should merge with istanbul default watermarks', ->
+      watermarks =
+        statements: [10, 20]
+        lines: [70, 80]
+
+      customConfig = _.merge {}, rootConfig,
+        coverageReporter:
+          reporters: [
+            {
+              dir: 'reporter1'
+            }
+          ]
+          watermarks: watermarks
+
+      mockReportCreate.reset()
+
+      reporter = new m.CoverageReporter customConfig, mockHelper, mockLogger
+      reporter.onRunStart()
+      browsers.forEach (b) -> reporter.onBrowserStart b
+      reporter.onRunComplete browsers
+
+      expect(mockReportCreate).to.have.been.called
+      options = mockReportCreate.getCall(0)
+      expect(options.args[1].watermarks.statements).to.deep.equal(watermarks.statements)
+      expect(options.args[1].watermarks.branches).to.deep.equal(mockDefaultWatermarks.branches)
+      expect(options.args[1].watermarks.functions).to.deep.equal(mockDefaultWatermarks.functions)
+      expect(options.args[1].watermarks.lines).to.deep.equal(watermarks.lines)
