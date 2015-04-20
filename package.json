@@ -20,7 +20,7 @@
   "author": "SATO taichi <ryushi@gmail.com>",
   "dependencies": {
     "dateformat": "~1.0.6",
-    "istanbul": "~0.3.0",
+    "istanbul": "git://github.com/nmalaguti/istanbul.git#feature/fix-sourcemap-offset",
     "minimatch": "~0.3.0",
     "source-map": "~0.4.2"
   },
